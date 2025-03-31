@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import cv2
 import numpy as np
 import pyautogui
@@ -7,6 +9,7 @@ import keyboard
 from copy import deepcopy
 from typing import List, Tuple
 from move_recorder import MoveRecorder
+from grid_locator import GridFinder
 
 # CONFIG
 GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT = 708, 310, 487, 490
@@ -21,17 +24,17 @@ ANIMATION_STABILITY_THRESHOLD = 1
 
 # Color Map
 COLOR_MAP = {
-    (234, 224, 214): 2,
-    (168, 158, 142): 4,
-    (245, 212, 182): 8,
-    (245, 149, 99): 16,
-    (246, 156, 133): 32,
-    (246, 94, 59): 64,
-    (240, 219, 157): 128,
-    (245, 232, 194): 256,
-    (245, 234, 202): 512,
-    (243, 221, 148): 1024,
-    (237, 194, 46): 2048,
+    (182, 173, 163): 2,
+    (160, 150, 135): 4,
+    (247, 227, 209): 8,
+    (246, 184, 150): 16,
+    (246, 159, 137): 32,
+    (247, 144, 120): 64,
+    (243, 227, 182): 128,
+    (243, 227, 180): 256,
+    (242, 222, 154): 512,
+    (242, 218, 141): 1024,
+    (242, 217, 136): 2048,
     (205, 193, 180): 0
 }
 
@@ -89,7 +92,8 @@ class Bot2048:
                 Tuple[int, int, int]: The average RGB color of the cell as a tuple of integers.
         """
         center_x, center_y = x + CELL_SIZE // 2, y + CELL_SIZE // 2
-        region = image[center_y - 5:center_y + 5, center_x - 5:center_x + 5]
+        region_size = 10
+        region = image[max(0, center_y - region_size):min(image.shape[0], center_y + region_size), max(0, center_x - region_size):min(image.shape[1], center_x + region_size)]
         color = tuple(np.mean(region, axis=(0, 1)).astype(int))
         # self.detected_colors.add(color)
         return color
@@ -444,40 +448,58 @@ class Bot2048:
 
             Stops when the 'q' key is pressed or a 2048 tile is reached.
         """
-        time.sleep(5)
         print("Starting bot... Press 'Q' to quit")
         self.move_recorder.start_recording()
         last_move_time = time.time()
+
         while not keyboard.is_pressed('q'):
-            if not self.is_grid_stable():
+            grid_finder = GridFinder()
+            try:
+                global GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT, CELL_SIZE
+                GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT = grid_finder.detect_grid()
+                CELL_SIZE = GRID_WIDTH // 4
+                print(f"Detected grid at: ({GRID_X}, {GRID_Y}) with size ({GRID_WIDTH}, {GRID_HEIGHT})")
+            except ValueError:
+                print("Could not detect the 2048 game grid. Waiting to detect grid...")
+                time.sleep(1)
                 continue
 
-            screen = self.capture_screen()
-            self.previous_grid = deepcopy(self.grid)
-            self.grid = self.read_grid(screen)
+            while not keyboard.is_pressed('q'):
+                if not self.is_grid_stable():
+                    continue
 
-            if self.previous_grid == self.grid and self.last_move:
-                self.stuck_count += 1
+                screen = self.capture_screen()
+                self.previous_grid = deepcopy(self.grid)
+                self.grid = self.read_grid(screen)
 
-            move = self.choose_best_move()
-            self.last_move = move
-            keyboard.press_and_release(self.move_keys[move])
-            self.move_recorder.record_frame(screen, move)
+                if self.previous_grid == self.grid and self.last_move:
+                    self.stuck_count += 1
 
-            max_tile = max(max(row) for row in self.grid)
-            print(f"Move: {move} (Stuck: {self.stuck_count}, Max Tile: {max_tile})")
-            for row in self.grid:
-                print(row)
-            print()
+                move = self.choose_best_move()
+                self.last_move = move
+                keyboard.press_and_release(self.move_keys[move])
+                self.move_recorder.record_frame(screen, move)
 
-            elapsed = time.time() - last_move_time
-            sleep_time = max(0, BASE_MOVE_DELAY - elapsed)
-            time.sleep(sleep_time)
-            last_move_time = time.time()
+                max_tile = max(max(row) for row in self.grid)
+                print(f"Move: {move} (Stuck: {self.stuck_count}, Max Tile: {max_tile})")
+                for row in self.grid:
+                    print(row)
+                print()
 
-            if max_tile >= 2048:
-                print("Reached 2048! You win!")
-                break
+                elapsed = time.time() - last_move_time
+                sleep_time = max(0, BASE_MOVE_DELAY - elapsed)
+                time.sleep(sleep_time)
+                last_move_time = time.time()
+
+                if max_tile >= 2048:
+                    print("Reached 2048! You win!")
+                    break
+
+                try:
+                    GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT = grid_finder.detect_grid()
+                except ValueError:
+                    print("Lost grid focus. Stopping the bot.")
+                    break
 
         self.move_recorder.stop_recording()
         # self.show_detected_colors()
