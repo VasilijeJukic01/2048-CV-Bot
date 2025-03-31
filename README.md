@@ -7,7 +7,7 @@ A Python-based bot that plays the 2048 game automatically using computer vision 
 ## How it works?
 
 ### 1. Looking at the Game (Screen Capture)
-The bot takes a screenshot of the 2048 grid using a tool called pyautogui. Think of it like the bot snapping a photo of your screen where the game is. It uses the coordinates from CONFIG section to know exactly where to look.
+The bot takes a screenshot of the 2048 grid using a tool called pyautogui. Think of it like the bot snapping a photo of your screen where the game is. It automatically detects grid coordinates to know exactly where to look.
 
 ### 2. Understanding the Grid (Color Detection)
 The bot looks at the colors in the screenshot to figure out which numbers are in each cell. For example, a light beige color might mean a "2" while orange means "16". It checks the average color of each square, then matches these colors to a list it knows, like COLOR_MAP in the code.
@@ -39,10 +39,8 @@ This scoring helps the bot balance short-term wins (merging tiles) with long-ter
 The bot presses a key to move the tiles. It uses the keyboard library to act like a human pressing keys.
 
 ## Usage
-1. **Set Up Coordinates in ```CONFIG```** - 
-tell the bot where the game grid is on your screen.
-2. **Open 2048** - 
+1. **Open 2048** - 
 start the game in a browser. Don’t move the window once the bot starts!
-3. **Run the Bot** -
-```python bot2048.py```
-4. **Press Q to Stop**
+2. **Run the Bot** -
+execute ```run_bot.bat```
+3. **Press Q to Stop**
