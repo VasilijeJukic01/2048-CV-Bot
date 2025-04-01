@@ -24,17 +24,17 @@ ANIMATION_STABILITY_THRESHOLD = 1
 
 # Color Map
 COLOR_MAP = {
-    (182, 173, 163): 2,
-    (160, 150, 135): 4,
-    (247, 227, 209): 8,
-    (246, 184, 150): 16,
-    (246, 159, 137): 32,
-    (247, 144, 120): 64,
-    (243, 227, 182): 128,
-    (243, 227, 180): 256,
-    (242, 222, 154): 512,
-    (242, 218, 141): 1024,
-    (242, 217, 136): 2048,
+    (238, 228, 218): 2,
+    (237, 224, 200): 4,
+    (242, 177, 121): 8,
+    (245, 149, 99): 16,
+    (246, 124, 95): 32,
+    (246, 94, 59): 64,
+    (237, 207, 114): 128,
+    (237, 204, 97): 256,
+    (237, 200, 80): 512,
+    (237, 197, 63): 1024,
+    (237, 194, 46): 2048,
     (205, 193, 180): 0
 }
 
@@ -81,7 +81,7 @@ class Bot2048:
         return np.array(screenshot)
 
     def get_cell_color(self, image: np.ndarray, x: int, y: int) -> Tuple:
-        """Determine the avg color of a specified cell in the grid image.
+        """Determine the color of a pixel above the center of a specified cell in the grid image.
 
             Args:
                 image (np.ndarray): The screenshot of the game grid.
@@ -89,12 +89,11 @@ class Bot2048:
                 y (int): The y-coordinate of the cell's top-left corner in pixels.
 
             Returns:
-                Tuple[int, int, int]: The average RGB color of the cell as a tuple of integers.
+                Tuple[int, int, int]: The RGB color of the pixel as a tuple of integers.
         """
         center_x, center_y = x + CELL_SIZE // 2, y + CELL_SIZE // 2
-        region_size = 10
-        region = image[max(0, center_y - region_size):min(image.shape[0], center_y + region_size), max(0, center_x - region_size):min(image.shape[1], center_x + region_size)]
-        color = tuple(np.mean(region, axis=(0, 1)).astype(int))
+        pixel_x, pixel_y = center_x, max(0, center_y - 30)
+        color = tuple(image[pixel_y, pixel_x])
         # self.detected_colors.add(color)
         return color
 
@@ -138,7 +137,7 @@ class Bot2048:
                 for mapped_color, tile_value in COLOR_MAP.items():
                     # Euclidean distance between colors
                     dist = sum((a - b) ** 2 for a, b in zip(color, mapped_color))
-                    if dist < min_dist and dist < 150:
+                    if dist < min_dist and dist < 50:
                         min_dist = dist
                         value = tile_value
                 grid[i][j] = value
