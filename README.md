@@ -41,6 +41,5 @@ The bot presses a key to move the tiles. It uses the keyboard library to act lik
 ## Usage
 1. **Open 2048** - 
 start the game in a browser. Don’t move the window once the bot starts!
-2. **Run the Bot** -
-execute ```run_bot.bat```
-3. **Press Q to Stop**
+2. **Run the Bot**
+3. **Press ESC to Stop**
