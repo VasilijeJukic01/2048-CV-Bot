@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-import cv2
 import numpy as np
-import pyautogui
 import time
 import random
-import keyboard
+from PIL import ImageGrab
+from pynput.keyboard import Controller, Listener, Key
 from copy import deepcopy
 from typing import List, Tuple
 from move_recorder import MoveRecorder
@@ -37,6 +36,19 @@ COLOR_MAP = {
     (237, 194, 46): 2048,
     (205, 193, 180): 0
 }
+
+
+def on_press(key):
+    """Stop the bot when the 'ESC' key is pressed."""
+    try:
+        if key == Key.esc:
+            listener.stop()
+    except AttributeError:
+        pass
+
+
+listener = Listener(on_press=on_press)
+keyboard_controller = Controller()
 
 
 class Bot2048:
@@ -77,7 +89,7 @@ class Bot2048:
             Returns:
                 np.ndarray: A NumPy array that represents the screenshot in RGB.
         """
-        screenshot = pyautogui.screenshot(region=(GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT))
+        screenshot = ImageGrab.grab(bbox=(GRID_X, GRID_Y, GRID_X + GRID_WIDTH, GRID_Y + GRID_HEIGHT))
         return np.array(screenshot)
 
     def get_cell_color(self, image: np.ndarray, x: int, y: int) -> Tuple:
@@ -445,63 +457,68 @@ class Bot2048:
     def run(self):
         """Run the 2048 bot in a continuous loop until stopped.
 
-            Stops when the 'q' key is pressed or a 2048 tile is reached.
+            Stops when the 'ESC' key is pressed or a 2048 tile is reached.
         """
-        print("Starting bot... Press 'Q' to quit")
+        global listener
+        print("Starting bot... Press 'ESC' to quit")
         self.move_recorder.start_recording()
         last_move_time = time.time()
 
-        while not keyboard.is_pressed('q'):
-            grid_finder = GridFinder()
-            try:
-                global GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT, CELL_SIZE
-                GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT = grid_finder.detect_grid()
-                CELL_SIZE = GRID_WIDTH // 4
-                print(f"Detected grid at: ({GRID_X}, {GRID_Y}) with size ({GRID_WIDTH}, {GRID_HEIGHT})")
-            except ValueError:
-                print("Could not detect the 2048 game grid. Waiting to detect grid...")
-                time.sleep(1)
-                continue
-
-            while not keyboard.is_pressed('q'):
-                if not self.is_grid_stable():
+        listener.start()
+        try:
+            while listener.running:
+                grid_finder = GridFinder()
+                try:
+                    global GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT, CELL_SIZE
+                    GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT = grid_finder.detect_grid()
+                    CELL_SIZE = GRID_WIDTH // 4
+                    print(f"Detected grid at: ({GRID_X}, {GRID_Y}) with size ({GRID_WIDTH}, {GRID_HEIGHT})")
+                except ValueError:
+                    print("Could not detect the 2048 game grid. Waiting to detect grid...")
+                    time.sleep(1)
                     continue
 
-                screen = self.capture_screen()
-                self.previous_grid = deepcopy(self.grid)
-                self.grid = self.read_grid(screen)
+                while listener.running:
+                    if not self.is_grid_stable():
+                        continue
 
-                if self.previous_grid == self.grid and self.last_move:
-                    self.stuck_count += 1
+                    screen = self.capture_screen()
+                    self.previous_grid = deepcopy(self.grid)
+                    self.grid = self.read_grid(screen)
 
-                move = self.choose_best_move()
-                self.last_move = move
-                keyboard.press_and_release(self.move_keys[move])
-                self.move_recorder.record_frame(screen, move)
+                    if self.previous_grid == self.grid and self.last_move:
+                        self.stuck_count += 1
 
-                max_tile = max(max(row) for row in self.grid)
-                print(f"Move: {move} (Stuck: {self.stuck_count}, Max Tile: {max_tile})")
-                for row in self.grid:
-                    print(row)
-                print()
+                    move = self.choose_best_move()
+                    self.last_move = move
+                    keyboard_controller.press(self.move_keys[move])
+                    keyboard_controller.release(self.move_keys[move])
+                    self.move_recorder.record_frame(screen, move)
 
-                elapsed = time.time() - last_move_time
-                sleep_time = max(0, BASE_MOVE_DELAY - elapsed)
-                time.sleep(sleep_time)
-                last_move_time = time.time()
+                    max_tile = max(max(row) for row in self.grid)
+                    print(f"Move: {move} (Stuck: {self.stuck_count}, Max Tile: {max_tile})")
+                    for row in self.grid:
+                        print(row)
+                    print()
 
-                if max_tile >= 2048:
-                    print("Reached 2048! You win!")
-                    break
+                    elapsed = time.time() - last_move_time
+                    sleep_time = max(0, BASE_MOVE_DELAY - elapsed)
+                    time.sleep(sleep_time)
+                    last_move_time = time.time()
 
-                try:
-                    GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT = grid_finder.detect_grid()
-                except ValueError:
-                    print("Lost grid focus. Stopping the bot.")
-                    break
+                    if max_tile >= 2048:
+                        print("Reached 2048! You win!")
+                        break
 
-        self.move_recorder.stop_recording()
-        # self.show_detected_colors()
+                    try:
+                        GRID_X, GRID_Y, GRID_WIDTH, GRID_HEIGHT = grid_finder.detect_grid()
+                    except ValueError:
+                        print("Lost grid focus. Stopping the bot.")
+                        break
+        finally:
+            listener.stop()
+            self.move_recorder.stop_recording()
+            # self.show_detected_colors()
 
     # def show_detected_colors(self):
     #     color_list_bgr = [(color[2], color[1], color[0]) for color in self.detected_colors]

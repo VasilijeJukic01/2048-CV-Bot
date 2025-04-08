@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import pyautogui
+from PIL import ImageGrab
 from typing import Tuple
 
 
@@ -26,7 +26,7 @@ class GridFinder:
         Returns:
             np.ndarray: A NumPy array representing the screenshot in RGB.
         """
-        screenshot = pyautogui.screenshot()
+        screenshot = ImageGrab.grab().convert("RGB")
         return np.array(screenshot)
 
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
